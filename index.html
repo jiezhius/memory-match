@@ -26,7 +26,13 @@
     flex-direction: column;
     align-items: center;
     padding: 2rem 1rem 3rem;
+    transition: background 0.6s ease;
   }
+  body[data-theme="1"] { background: linear-gradient(135deg, #1e1b4b, #4c1d55); --accent: #c084fc; }
+  body[data-theme="2"] { background: linear-gradient(135deg, #052e26, #064e3b); --accent: #34d399; }
+  body[data-theme="3"] { background: linear-gradient(135deg, #451a03, #7c2d12); --accent: #fb923c; }
+  body[data-theme="4"] { background: linear-gradient(135deg, #1e1b4b, #1e3a8a); --accent: #818cf8; }
+  body[data-theme="5"] { background: linear-gradient(135deg, #4c0519, #831843); --accent: #fb7185; }
   h1 {
     margin: 0 0 0.25rem;
     font-size: 1.75rem;
@@ -68,6 +74,13 @@
     font-weight: 600;
   }
   button.primary:hover { filter: brightness(1.1); }
+  button.icon-btn {
+    background: var(--card-back);
+    color: var(--text);
+    font-size: 1rem;
+    padding: 0.5rem 0.7rem;
+  }
+  button.icon-btn:hover { filter: brightness(1.15); }
 
   .board {
     display: grid;
@@ -158,6 +171,10 @@
 
   <div class="panel">
     <div class="stat">
+      <div class="label">关卡</div>
+      <div class="value" id="level">1</div>
+    </div>
+    <div class="stat">
       <div class="label">用时</div>
       <div class="value" id="timer">00:00</div>
     </div>
@@ -175,6 +192,7 @@
       <option value="6x4">困难 (6x4)</option>
     </select>
     <button class="primary" id="restart">重新开始</button>
+    <button class="icon-btn" id="muteBtn" title="静音/取消静音">🔊</button>
   </div>
 
   <div class="board" id="board"></div>
@@ -186,19 +204,23 @@
       <h2>🎉 完成！</h2>
       <p>用时 <span id="finalTime"></span>，共 <span id="finalMoves"></span> 步</p>
       <p class="best" id="newBest"></p>
-      <button class="primary" id="playAgain">再玩一次</button>
+      <button class="primary" id="playAgain">下一关</button>
     </div>
   </div>
 
 <script>
 const EMOJIS = ["🍎","🍌","🍇","🍉","🍓","🍑","🥝","🍍","🥑","🍒","🌽","🍋","🍒","🥕","🍆","🍄","🍅","🥥","🍊","🍈","🫐","🥭","🍐","🍏"];
+const LEVEL_TIERS = [{ cols: 4, rows: 3 }, { cols: 4, rows: 4 }, { cols: 6, rows: 4 }];
+const THEME_COUNT = 6;
 
 const board = document.getElementById('board');
 const movesEl = document.getElementById('moves');
 const timerEl = document.getElementById('timer');
 const bestEl = document.getElementById('best');
+const levelEl = document.getElementById('level');
 const difficultySelect = document.getElementById('difficulty');
 const restartBtn = document.getElementById('restart');
+const muteBtn = document.getElementById('muteBtn');
 const winOverlay = document.getElementById('winOverlay');
 const finalTimeEl = document.getElementById('finalTime');
 const finalMovesEl = document.getElementById('finalMoves');
@@ -207,6 +229,8 @@ const playAgainBtn = document.getElementById('playAgain');
 
 let state = {
   cols: 4, rows: 4,
+  level: 1,
+  tierIndex: 1,
   cards: [],
   flipped: [],
   matchedCount: 0,
@@ -215,7 +239,57 @@ let state = {
   timerId: null,
   started: false,
   locked: false,
+  muted: localStorage.getItem('memory-match-muted') === '1',
 };
+
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq, startTime, duration, type = 'sine', volume = 0.15) {
+  if (state.muted) return;
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const t0 = ctx.currentTime + startTime;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(volume, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.02);
+}
+
+function playFlip() {
+  playTone(520, 0, 0.08, 'square', 0.06);
+}
+
+function playMatch() {
+  playTone(880, 0, 0.12, 'triangle', 0.12);
+  playTone(1175, 0.1, 0.16, 'triangle', 0.12);
+}
+
+function playWin() {
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+    playTone(freq, i * 0.12, 0.18, 'triangle', 0.14);
+  });
+}
+
+function updateMuteBtn() {
+  muteBtn.textContent = state.muted ? '🔇' : '🔊';
+}
+
+function applyTheme(level) {
+  document.body.dataset.theme = String((level - 1) % THEME_COUNT);
+}
 
 function bestKey() {
   return `memory-match-best-${state.cols}x${state.rows}`;
@@ -263,8 +337,8 @@ function stopTimer() {
   state.timerId = null;
 }
 
-function setupGame() {
-  const [cols, rows] = difficultySelect.value.split('x').map(Number);
+function buildBoard() {
+  const { cols, rows } = LEVEL_TIERS[state.tierIndex];
   state.cols = cols;
   state.rows = rows;
   state.cards = [];
@@ -277,8 +351,10 @@ function setupGame() {
   stopTimer();
   movesEl.textContent = '0';
   timerEl.textContent = '00:00';
+  levelEl.textContent = state.level;
   winOverlay.classList.remove('show');
   loadBest();
+  applyTheme(state.level);
 
   const totalPairs = (cols * rows) / 2;
   const symbols = shuffle([...EMOJIS]).slice(0, totalPairs);
@@ -302,6 +378,20 @@ function setupGame() {
   });
 }
 
+function setupGame() {
+  const [cols, rows] = difficultySelect.value.split('x').map(Number);
+  const idx = LEVEL_TIERS.findIndex(t => t.cols === cols && t.rows === rows);
+  state.tierIndex = idx === -1 ? 0 : idx;
+  state.level = 1;
+  buildBoard();
+}
+
+function nextLevel() {
+  state.level++;
+  state.tierIndex = Math.min(state.tierIndex + 1, LEVEL_TIERS.length - 1);
+  buildBoard();
+}
+
 function onCardClick(card) {
   if (state.locked) return;
   if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
@@ -314,6 +404,7 @@ function onCardClick(card) {
 
   card.classList.add('flipped');
   state.flipped.push(card);
+  playFlip();
 
   if (state.flipped.length === 2) {
     state.moves++;
@@ -322,6 +413,7 @@ function onCardClick(card) {
     if (a.dataset.symbol === b.dataset.symbol) {
       a.classList.add('matched');
       b.classList.add('matched');
+      playMatch();
       state.matchedCount += 2;
       state.flipped = [];
       if (state.matchedCount === state.cards.length) {
@@ -345,6 +437,7 @@ function onCardClick(card) {
 
 function onWin() {
   stopTimer();
+  playWin();
   finalTimeEl.textContent = formatTime(state.seconds);
   finalMovesEl.textContent = state.moves;
   const isNewBest = saveBestIfNeeded();
@@ -354,9 +447,15 @@ function onWin() {
 }
 
 restartBtn.addEventListener('click', setupGame);
-playAgainBtn.addEventListener('click', setupGame);
+playAgainBtn.addEventListener('click', nextLevel);
 difficultySelect.addEventListener('change', setupGame);
+muteBtn.addEventListener('click', () => {
+  state.muted = !state.muted;
+  localStorage.setItem('memory-match-muted', state.muted ? '1' : '0');
+  updateMuteBtn();
+});
 
+updateMuteBtn();
 setupGame();
 </script>
 </body>
