@@ -6,44 +6,53 @@
 <title>记忆翻牌</title>
 <style>
   :root {
-    --bg: #0f172a;
+    --bg: linear-gradient(135deg, #7dd3fc, #bae6fd);
     --panel: #1e293b;
     --card-back: #334155;
     --card-back-hover: #3f4f68;
-    --accent: #38bdf8;
+    --accent: #0ea5e9;
     --text: #e2e8f0;
     --muted: #94a3b8;
     --matched: #22c55e33;
+    --on-bg: #334155;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     min-height: 100vh;
     background: var(--bg);
-    color: var(--text);
+    color: var(--on-bg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 2rem 1rem 3rem;
     transition: background 0.6s ease;
+    position: relative;
+    overflow-x: hidden;
   }
-  body[data-theme="1"] { background: linear-gradient(135deg, #1e1b4b, #4c1d55); --accent: #c084fc; }
-  body[data-theme="2"] { background: linear-gradient(135deg, #052e26, #064e3b); --accent: #34d399; }
-  body[data-theme="3"] { background: linear-gradient(135deg, #451a03, #7c2d12); --accent: #fb923c; }
-  body[data-theme="4"] { background: linear-gradient(135deg, #1e1b4b, #1e3a8a); --accent: #818cf8; }
-  body[data-theme="5"] { background: linear-gradient(135deg, #4c0519, #831843); --accent: #fb7185; }
+  body[data-theme="1"] { background: linear-gradient(135deg, #fde68a, #fdba74); --accent: #f59e0b; }
+  body[data-theme="2"] { background: linear-gradient(135deg, #86efac, #5eead4); --accent: #10b981; }
+  body[data-theme="3"] { background: linear-gradient(135deg, #fbcfe8, #f9a8d4); --accent: #ec4899; }
+  body[data-theme="4"] { background: linear-gradient(135deg, #c4b5fd, #a5b4fc); --accent: #8b5cf6; }
+  body[data-theme="5"] { background: linear-gradient(135deg, #fecaca, #fdba74); --accent: #f43f5e; }
   h1 {
     margin: 0 0 0.25rem;
     font-size: 1.75rem;
+    position: relative;
+    z-index: 2;
   }
   .subtitle {
-    color: var(--muted);
+    color: var(--on-bg);
+    opacity: 0.75;
     margin: 0 0 1.5rem;
     font-size: 0.9rem;
+    position: relative;
+    z-index: 2;
   }
   .panel {
     background: var(--panel);
+    color: var(--text);
     border-radius: 16px;
     padding: 1.25rem 1.5rem;
     margin-bottom: 1.5rem;
@@ -52,6 +61,8 @@
     align-items: center;
     flex-wrap: wrap;
     justify-content: center;
+    position: relative;
+    z-index: 2;
   }
   .stat { text-align: center; }
   .stat .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -86,6 +97,8 @@
     display: grid;
     gap: 10px;
     perspective: 800px;
+    position: relative;
+    z-index: 2;
   }
   .card {
     width: 80px;
@@ -150,6 +163,7 @@
   .win-overlay.show { display: flex; }
   .win-card {
     background: var(--panel);
+    color: var(--text);
     border-radius: 16px;
     padding: 2rem 2.5rem;
     text-align: center;
@@ -160,74 +174,244 @@
 
   footer {
     margin-top: 2rem;
-    color: var(--muted);
+    color: var(--on-bg);
+    opacity: 0.75;
     font-size: 0.8rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  .critter-lane {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 110px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .critter {
+    position: absolute;
+    bottom: 4px;
+    animation: walk-across linear infinite;
+    will-change: transform;
+  }
+  .critter-face {
+    display: inline-block;
+    animation: hop ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  @keyframes walk-across {
+    from { transform: translateX(-20vw); }
+    to { transform: translateX(120vw); }
+  }
+  @keyframes hop {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-18px) rotate(-8deg); }
+    50% { transform: translateY(-26px) rotate(0deg); }
+    75% { transform: translateY(-18px) rotate(8deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .critter, .critter-face { animation: none; display: none; }
   }
 </style>
 </head>
 <body>
-  <h1>🧠 记忆翻牌</h1>
-  <p class="subtitle">找出所有配对，越快越好</p>
+  <div class="critter-lane" id="critterLane" aria-hidden="true"></div>
+
+  <h1><span id="mascotIcon">🐰</span> <span data-i18n="title">记忆翻牌</span></h1>
+  <p class="subtitle" data-i18n="subtitle">找出所有配对，越快越好</p>
 
   <div class="panel">
     <div class="stat">
-      <div class="label">关卡</div>
+      <div class="label" data-i18n="levelLabel">关卡</div>
       <div class="value" id="level">1</div>
     </div>
     <div class="stat">
-      <div class="label">用时</div>
+      <div class="label" data-i18n="timeLabel">用时</div>
       <div class="value" id="timer">00:00</div>
     </div>
     <div class="stat">
-      <div class="label">步数</div>
+      <div class="label" data-i18n="movesLabel">步数</div>
       <div class="value" id="moves">0</div>
     </div>
     <div class="stat">
-      <div class="label">最佳成绩</div>
+      <div class="label" data-i18n="bestLabel">最佳成绩</div>
       <div class="value" id="best">--</div>
     </div>
     <select id="difficulty">
-      <option value="4x3">简单 (4x3)</option>
-      <option value="4x4" selected>普通 (4x4)</option>
-      <option value="6x4">困难 (6x4)</option>
+      <option value="4x3" data-i18n="diffEasy">简单 (4x3)</option>
+      <option value="4x4" selected data-i18n="diffMedium">普通 (4x4)</option>
+      <option value="6x4" data-i18n="diffHard">困难 (6x4)</option>
     </select>
-    <button class="primary" id="restart">重新开始</button>
-    <button class="icon-btn" id="muteBtn" title="静音/取消静音">🔊</button>
+    <select id="language"></select>
+    <button class="primary" id="restart" data-i18n="restartBtn">重新开始</button>
+    <button class="icon-btn" id="muteBtn" data-i18n-title="muteTitle" title="静音/取消静音">🔊</button>
   </div>
 
   <div class="board" id="board"></div>
 
-  <footer>提示：连续答对不清空计次，比比看谁步数更少</footer>
+  <footer data-i18n="footerTip">提示：连续答对不清空计次，比比看谁步数更少</footer>
 
   <div class="win-overlay" id="winOverlay">
     <div class="win-card">
-      <h2>🎉 完成！</h2>
-      <p>用时 <span id="finalTime"></span>，共 <span id="finalMoves"></span> 步</p>
+      <h2 data-i18n="winTitle">🎉 完成！</h2>
+      <p id="winStats"></p>
       <p class="best" id="newBest"></p>
-      <button class="primary" id="playAgain">下一关</button>
+      <button class="primary" id="playAgain" data-i18n="nextLevelBtn">下一关</button>
     </div>
   </div>
 
 <script>
-const EMOJIS = [
+const ANIMAL_POOL = [
   "🐼","🐶","🐱","🐰","🦊","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
   "🐔","🐧","🦄","🐻","🐹","🦋","🐝","🐳","🐬","🦖","🐙","🐢",
-  "🍎","🍌","🍇","🍉","🍓","🍑","🥝","🍍",
 ];
+const EMOJIS = [...ANIMAL_POOL, "🍎","🍌","🍇","🍉","🍓","🍑","🥝","🍍"];
+const CRITTERS = ["🐰","🐥","🐢","🦋","🐝","🐿️"];
 const LEVEL_TIERS = [{ cols: 4, rows: 3 }, { cols: 4, rows: 4 }, { cols: 6, rows: 4 }];
 const THEME_COUNT = 6;
 
+const LANGS = [
+  { code: 'zh-CN', name: '简体中文' },
+  { code: 'zh-TW', name: '繁體中文' },
+  { code: 'en', name: 'English' },
+  { code: 'ar', name: 'العربية' },
+  { code: 'ja', name: '日本語' },
+  { code: 'ko', name: '한국어' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'ru', name: 'Русский' },
+  { code: 'pt', name: 'Português' },
+  { code: 'hi', name: 'हिन्दी' },
+];
+
+const I18N = {
+  'zh-CN': {
+    title: '记忆翻牌', subtitle: '找出所有配对，越快越好',
+    levelLabel: '关卡', timeLabel: '用时', movesLabel: '步数', bestLabel: '最佳成绩',
+    diffEasy: '简单 (4x3)', diffMedium: '普通 (4x4)', diffHard: '困难 (6x4)',
+    restartBtn: '重新开始', muteTitle: '静音/取消静音',
+    footerTip: '提示：连续答对不清空计次，比比看谁步数更少',
+    winTitle: '🎉 完成！', winStats: '用时 {time}，共 {moves} 步',
+    newBest: '🏆 新纪录！', nextLevelBtn: '下一关',
+  },
+  'zh-TW': {
+    title: '記憶翻牌', subtitle: '找出所有配對，越快越好',
+    levelLabel: '關卡', timeLabel: '用時', movesLabel: '步數', bestLabel: '最佳成績',
+    diffEasy: '簡單 (4x3)', diffMedium: '普通 (4x4)', diffHard: '困難 (6x4)',
+    restartBtn: '重新開始', muteTitle: '靜音/取消靜音',
+    footerTip: '提示：連續答對不清空計次，比比看誰步數更少',
+    winTitle: '🎉 完成！', winStats: '用時 {time}，共 {moves} 步',
+    newBest: '🏆 新紀錄！', nextLevelBtn: '下一關',
+  },
+  en: {
+    title: 'Memory Match', subtitle: 'Find all the pairs — the faster, the better',
+    levelLabel: 'Level', timeLabel: 'Time', movesLabel: 'Moves', bestLabel: 'Best',
+    diffEasy: 'Easy (4x3)', diffMedium: 'Normal (4x4)', diffHard: 'Hard (6x4)',
+    restartBtn: 'Restart', muteTitle: 'Mute / Unmute',
+    footerTip: "Tip: matches don't reset your streak — see who can finish in fewer moves",
+    winTitle: '🎉 Complete!', winStats: 'Time {time}, {moves} moves',
+    newBest: '🏆 New record!', nextLevelBtn: 'Next Level',
+  },
+  ar: {
+    title: 'لعبة الذاكرة', subtitle: 'اعثر على كل الأزواج، كلما أسرعت كان أفضل',
+    levelLabel: 'المستوى', timeLabel: 'الوقت', movesLabel: 'الحركات', bestLabel: 'أفضل نتيجة',
+    diffEasy: 'سهل (4×3)', diffMedium: 'متوسط (4×4)', diffHard: 'صعب (6×4)',
+    restartBtn: 'إعادة البدء', muteTitle: 'كتم/إلغاء كتم الصوت',
+    footerTip: 'تلميح: الأزواج الصحيحة لا تُصفّر عدّاد حركاتك، فلنرَ من يُنهي بأقل عدد من الحركات',
+    winTitle: '🎉 أحسنت!', winStats: 'الوقت {time}، {moves} حركة',
+    newBest: '🏆 رقم قياسي جديد!', nextLevelBtn: 'المستوى التالي',
+  },
+  ja: {
+    title: '神経衰弱', subtitle: 'すべてのペアを見つけよう、速いほど良い',
+    levelLabel: 'レベル', timeLabel: 'タイム', movesLabel: '手数', bestLabel: 'ベスト',
+    diffEasy: 'かんたん (4x3)', diffMedium: 'ふつう (4x4)', diffHard: 'むずかしい (6x4)',
+    restartBtn: 'リスタート', muteTitle: 'ミュート切替',
+    footerTip: 'ヒント：正解してもコンボはリセットされません。手数の少なさを競おう',
+    winTitle: '🎉 クリア！', winStats: 'タイム {time}、{moves} 手',
+    newBest: '🏆 新記録！', nextLevelBtn: '次のレベルへ',
+  },
+  ko: {
+    title: '짝맞추기 게임', subtitle: '모든 짝을 찾아보세요, 빠를수록 좋아요',
+    levelLabel: '레벨', timeLabel: '시간', movesLabel: '횟수', bestLabel: '최고 기록',
+    diffEasy: '쉬움 (4x3)', diffMedium: '보통 (4x4)', diffHard: '어려움 (6x4)',
+    restartBtn: '다시 시작', muteTitle: '음소거 전환',
+    footerTip: '힌트: 짝을 맞춰도 콤보는 초기화되지 않아요, 누가 더 적은 횟수로 끝내는지 겨뤄보세요',
+    winTitle: '🎉 완료!', winStats: '시간 {time}, {moves}회',
+    newBest: '🏆 신기록!', nextLevelBtn: '다음 레벨',
+  },
+  es: {
+    title: 'Memorama', subtitle: 'Encuentra todas las parejas, cuanto más rápido mejor',
+    levelLabel: 'Nivel', timeLabel: 'Tiempo', movesLabel: 'Movimientos', bestLabel: 'Mejor marca',
+    diffEasy: 'Fácil (4x3)', diffMedium: 'Normal (4x4)', diffHard: 'Difícil (6x4)',
+    restartBtn: 'Reiniciar', muteTitle: 'Silenciar/Activar sonido',
+    footerTip: 'Consejo: los aciertos no reinician tu racha, compite a ver quién termina con menos movimientos',
+    winTitle: '🎉 ¡Completado!', winStats: 'Tiempo {time}, {moves} movimientos',
+    newBest: '🏆 ¡Nuevo récord!', nextLevelBtn: 'Siguiente nivel',
+  },
+  fr: {
+    title: 'Jeu de mémoire', subtitle: 'Trouvez toutes les paires, le plus vite possible',
+    levelLabel: 'Niveau', timeLabel: 'Temps', movesLabel: 'Coups', bestLabel: 'Meilleur score',
+    diffEasy: 'Facile (4x3)', diffMedium: 'Normal (4x4)', diffHard: 'Difficile (6x4)',
+    restartBtn: 'Recommencer', muteTitle: 'Activer/Couper le son',
+    footerTip: 'Astuce : les paires trouvées ne réinitialisent pas votre série, voyons qui finit avec le moins de coups',
+    winTitle: '🎉 Terminé !', winStats: 'Temps {time}, {moves} coups',
+    newBest: '🏆 Nouveau record !', nextLevelBtn: 'Niveau suivant',
+  },
+  de: {
+    title: 'Memory-Spiel', subtitle: 'Finde alle Paare – je schneller, desto besser',
+    levelLabel: 'Level', timeLabel: 'Zeit', movesLabel: 'Züge', bestLabel: 'Bestzeit',
+    diffEasy: 'Leicht (4x3)', diffMedium: 'Normal (4x4)', diffHard: 'Schwer (6x4)',
+    restartBtn: 'Neu starten', muteTitle: 'Ton stumm schalten/aktivieren',
+    footerTip: 'Tipp: richtige Paare setzen deine Serie nicht zurück – wer schafft es mit weniger Zügen?',
+    winTitle: '🎉 Geschafft!', winStats: 'Zeit {time}, {moves} Züge',
+    newBest: '🏆 Neuer Rekord!', nextLevelBtn: 'Nächstes Level',
+  },
+  ru: {
+    title: 'Игра на память', subtitle: 'Найдите все пары — чем быстрее, тем лучше',
+    levelLabel: 'Уровень', timeLabel: 'Время', movesLabel: 'Ходы', bestLabel: 'Рекорд',
+    diffEasy: 'Лёгкий (4x3)', diffMedium: 'Обычный (4x4)', diffHard: 'Сложный (6x4)',
+    restartBtn: 'Начать заново', muteTitle: 'Вкл/выкл звук',
+    footerTip: 'Подсказка: совпадения не сбрасывают серию — посмотрим, кто пройдёт за меньшее число ходов',
+    winTitle: '🎉 Готово!', winStats: 'Время {time}, ходов: {moves}',
+    newBest: '🏆 Новый рекорд!', nextLevelBtn: 'Следующий уровень',
+  },
+  pt: {
+    title: 'Jogo da Memória', subtitle: 'Encontre todos os pares, quanto mais rápido melhor',
+    levelLabel: 'Nível', timeLabel: 'Tempo', movesLabel: 'Jogadas', bestLabel: 'Recorde',
+    diffEasy: 'Fácil (4x3)', diffMedium: 'Normal (4x4)', diffHard: 'Difícil (6x4)',
+    restartBtn: 'Reiniciar', muteTitle: 'Ativar/desativar som',
+    footerTip: 'Dica: acertos não zeram sua sequência, veja quem termina com menos jogadas',
+    winTitle: '🎉 Concluído!', winStats: 'Tempo {time}, {moves} jogadas',
+    newBest: '🏆 Novo recorde!', nextLevelBtn: 'Próximo nível',
+  },
+  hi: {
+    title: 'मेमोरी मैच', subtitle: 'सभी जोड़े खोजें, जितनी जल्दी उतना अच्छा',
+    levelLabel: 'स्तर', timeLabel: 'समय', movesLabel: 'चालें', bestLabel: 'सर्वश्रेष्ठ',
+    diffEasy: 'आसान (4x3)', diffMedium: 'सामान्य (4x4)', diffHard: 'कठिन (6x4)',
+    restartBtn: 'फिर से शुरू करें', muteTitle: 'म्यूट/अनम्यूट',
+    footerTip: 'सुझाव: सही जोड़ी मिलाने से आपका स्ट्रीक रीसेट नहीं होता, देखें कौन कम चालों में पूरा करता है',
+    winTitle: '🎉 पूरा हुआ!', winStats: 'समय {time}, {moves} चालें',
+    newBest: '🏆 नया रिकॉर्ड!', nextLevelBtn: 'अगला स्तर',
+  },
+};
+
 const board = document.getElementById('board');
+const mascotIconEl = document.getElementById('mascotIcon');
+const critterLane = document.getElementById('critterLane');
 const movesEl = document.getElementById('moves');
 const timerEl = document.getElementById('timer');
 const bestEl = document.getElementById('best');
 const levelEl = document.getElementById('level');
 const difficultySelect = document.getElementById('difficulty');
+const languageSelect = document.getElementById('language');
 const restartBtn = document.getElementById('restart');
 const muteBtn = document.getElementById('muteBtn');
 const winOverlay = document.getElementById('winOverlay');
-const finalTimeEl = document.getElementById('finalTime');
-const finalMovesEl = document.getElementById('finalMoves');
+const winStatsEl = document.getElementById('winStats');
 const newBestEl = document.getElementById('newBest');
 const playAgainBtn = document.getElementById('playAgain');
 
@@ -244,7 +428,82 @@ let state = {
   started: false,
   locked: false,
   muted: localStorage.getItem('memory-match-muted') === '1',
+  lang: 'en',
 };
+
+function detectLanguage() {
+  const saved = localStorage.getItem('memory-match-lang');
+  if (saved && I18N[saved]) return saved;
+  const navLangs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
+  for (const raw of navLangs) {
+    const lower = raw.toLowerCase();
+    if (lower.startsWith('zh')) {
+      return /tw|hk|mo/.test(lower) ? 'zh-TW' : 'zh-CN';
+    }
+    const base = lower.split('-')[0];
+    if (I18N[base]) return base;
+  }
+  return 'en';
+}
+
+function populateLanguageSelect() {
+  LANGS.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = l.name;
+    languageSelect.appendChild(opt);
+  });
+}
+
+function applyI18n() {
+  const dict = I18N[state.lang] || I18N.en;
+  document.documentElement.lang = state.lang;
+  document.documentElement.dir = state.lang === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = dict[el.dataset.i18n];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = dict[el.dataset.i18nTitle];
+  });
+  updateTitleBar();
+}
+
+function pickMascot() {
+  return ANIMAL_POOL[Math.floor(Math.random() * ANIMAL_POOL.length)];
+}
+
+function updateTitleBar() {
+  const dict = I18N[state.lang] || I18N.en;
+  document.title = `${mascotIconEl.textContent} ${dict.title}`;
+}
+
+function buildCritterLane(container, count) {
+  container.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const critter = document.createElement('span');
+    critter.className = 'critter';
+    const duration = 10 + Math.random() * 8;
+    const delay = -Math.random() * duration;
+    const size = 2.6 + Math.random() * 1.4;
+    critter.style.animationDuration = `${duration}s`;
+    critter.style.animationDelay = `${delay}s`;
+    critter.style.fontSize = `${size}rem`;
+
+    const face = document.createElement('span');
+    face.className = 'critter-face';
+    face.textContent = CRITTERS[Math.floor(Math.random() * CRITTERS.length)];
+    const hopDuration = 0.45 + Math.random() * 0.35;
+    face.style.animationDuration = `${hopDuration}s`;
+    face.style.animationDelay = `${-Math.random() * hopDuration}s`;
+
+    critter.appendChild(face);
+    container.appendChild(critter);
+  }
+}
+
+function initCritterLanes() {
+  buildCritterLane(critterLane, 6);
+}
 
 let audioCtx = null;
 function getAudioCtx() {
@@ -359,6 +618,8 @@ function buildBoard() {
   winOverlay.classList.remove('show');
   loadBest();
   applyTheme(state.level);
+  mascotIconEl.textContent = pickMascot();
+  updateTitleBar();
 
   const totalPairs = (cols * rows) / 2;
   const symbols = shuffle([...EMOJIS]).slice(0, totalPairs);
@@ -392,7 +653,6 @@ function setupGame() {
 
 function nextLevel() {
   state.level++;
-  state.tierIndex = Math.min(state.tierIndex + 1, LEVEL_TIERS.length - 1);
   buildBoard();
 }
 
@@ -442,10 +702,12 @@ function onCardClick(card) {
 function onWin() {
   stopTimer();
   playWin();
-  finalTimeEl.textContent = formatTime(state.seconds);
-  finalMovesEl.textContent = state.moves;
+  const dict = I18N[state.lang] || I18N.en;
+  winStatsEl.textContent = dict.winStats
+    .replace('{time}', formatTime(state.seconds))
+    .replace('{moves}', state.moves);
   const isNewBest = saveBestIfNeeded();
-  newBestEl.textContent = isNewBest ? '🏆 新纪录！' : '';
+  newBestEl.textContent = isNewBest ? dict.newBest : '';
   loadBest();
   setTimeout(() => winOverlay.classList.add('show'), 400);
 }
@@ -458,8 +720,18 @@ muteBtn.addEventListener('click', () => {
   localStorage.setItem('memory-match-muted', state.muted ? '1' : '0');
   updateMuteBtn();
 });
+languageSelect.addEventListener('change', () => {
+  state.lang = languageSelect.value;
+  localStorage.setItem('memory-match-lang', state.lang);
+  applyI18n();
+});
 
+state.lang = detectLanguage();
+populateLanguageSelect();
+languageSelect.value = state.lang;
+applyI18n();
 updateMuteBtn();
+initCritterLanes();
 setupGame();
 </script>
 </body>
