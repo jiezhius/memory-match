@@ -551,10 +551,16 @@ function updateMuteBtn() {
 }
 
 // Ad/analytics SDKs for HTML5 game portals (CrazyGames, Poki, GameDistribution).
-// Each check is defensive: outside of its own hosting iframe, a portal's SDK
-// either never attaches to `window` or safely no-ops, so this file is a single
-// build that runs unmodified on GitHub Pages, itch.io, and all three portals.
+// CrazyGames/Poki are defensive by design: outside their own hosting iframe
+// their SDKs either never attach to `window` or safely no-op. GameDistribution
+// is not — if it sees a domain that isn't registered for this game ID, it
+// force-redirects the entire top-level page to a "Blocked" page. So its SDK
+// is only ever loaded when we're actually being served from *.gamedistribution.com;
+// everywhere else (GitHub Pages, itch.io, this file opened directly) it's
+// simply never fetched, and the rest of this file's `window.gdsdk` checks
+// stay false — no code path changes, just no live GD script.
 const GD_GAME_ID = 'df02e8f6aec84afdb3bbac127132baaa';
+const ON_GAMEDISTRIBUTION = /(^|\.)gamedistribution\.com$/.test(location.hostname);
 
 const Platform = (() => {
   function loadScript(src) {
@@ -571,7 +577,7 @@ const Platform = (() => {
   // there is no init() call. Ad-finished/resume is signalled via the
   // onEvent callback (SDK_GAME_START), not a promise from showAd().
   let gdPendingAdDone = null;
-  if (!GD_GAME_ID.startsWith('REPLACE_')) {
+  if (ON_GAMEDISTRIBUTION) {
     window.GD_OPTIONS = {
       gameId: GD_GAME_ID,
       onEvent: function (event) {
@@ -585,11 +591,14 @@ const Platform = (() => {
   }
 
   async function init() {
-    await Promise.all([
+    const scripts = [
       loadScript('https://sdk.crazygames.com/crazygames-sdk-v3.js'),
       loadScript('https://game-cdn.poki.com/scripts/v2/poki-sdk.js'),
-      loadScript('https://html5.api.gamedistribution.com/main.min.js'),
-    ]);
+    ];
+    if (ON_GAMEDISTRIBUTION) {
+      scripts.push(loadScript('https://html5.api.gamedistribution.com/main.min.js'));
+    }
+    await Promise.all(scripts);
 
     if (window.CrazyGames && window.CrazyGames.SDK) {
       try { await window.CrazyGames.SDK.init(); } catch (e) {}
