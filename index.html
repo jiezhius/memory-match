@@ -116,7 +116,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 2.6rem;
     backface-visibility: hidden;
   }
   .card .front {
@@ -181,44 +181,9 @@
     z-index: 2;
   }
 
-  .critter-lane {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 110px;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 0;
-  }
-  .critter {
-    position: absolute;
-    bottom: 4px;
-    animation: walk-across linear infinite;
-    will-change: transform;
-  }
-  .critter-face {
-    display: inline-block;
-    animation: hop ease-in-out infinite;
-    transform-origin: bottom center;
-  }
-  @keyframes walk-across {
-    from { transform: translateX(-20vw); }
-    to { transform: translateX(120vw); }
-  }
-  @keyframes hop {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    25% { transform: translateY(-18px) rotate(-8deg); }
-    50% { transform: translateY(-26px) rotate(0deg); }
-    75% { transform: translateY(-18px) rotate(8deg); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .critter, .critter-face { animation: none; display: none; }
-  }
 </style>
 </head>
 <body>
-  <div class="critter-lane" id="critterLane" aria-hidden="true"></div>
 
   <h1><span id="mascotIcon">🐰</span> <span data-i18n="title">记忆翻牌</span></h1>
   <p class="subtitle" data-i18n="subtitle">找出所有配对，越快越好</p>
@@ -269,7 +234,6 @@ const ANIMAL_POOL = [
   "🐔","🐧","🦄","🐻","🐹","🦋","🐝","🐳","🐬","🦖","🐙","🐢",
 ];
 const EMOJIS = [...ANIMAL_POOL, "🍎","🍌","🍇","🍉","🍓","🍑","🥝","🍍"];
-const CRITTERS = ["🐰","🐥","🐢","🦋","🐝","🐿️"];
 const LEVEL_TIERS = [{ cols: 4, rows: 3 }, { cols: 4, rows: 4 }, { cols: 6, rows: 4 }];
 const THEME_COUNT = 6;
 
@@ -401,7 +365,6 @@ const I18N = {
 
 const board = document.getElementById('board');
 const mascotIconEl = document.getElementById('mascotIcon');
-const critterLane = document.getElementById('critterLane');
 const movesEl = document.getElementById('moves');
 const timerEl = document.getElementById('timer');
 const bestEl = document.getElementById('best');
@@ -475,34 +438,6 @@ function pickMascot() {
 function updateTitleBar() {
   const dict = I18N[state.lang] || I18N.en;
   document.title = `${mascotIconEl.textContent} ${dict.title}`;
-}
-
-function buildCritterLane(container, count) {
-  container.innerHTML = '';
-  for (let i = 0; i < count; i++) {
-    const critter = document.createElement('span');
-    critter.className = 'critter';
-    const duration = 10 + Math.random() * 8;
-    const delay = -Math.random() * duration;
-    const size = 2.6 + Math.random() * 1.4;
-    critter.style.animationDuration = `${duration}s`;
-    critter.style.animationDelay = `${delay}s`;
-    critter.style.fontSize = `${size}rem`;
-
-    const face = document.createElement('span');
-    face.className = 'critter-face';
-    face.textContent = CRITTERS[Math.floor(Math.random() * CRITTERS.length)];
-    const hopDuration = 0.45 + Math.random() * 0.35;
-    face.style.animationDuration = `${hopDuration}s`;
-    face.style.animationDelay = `${-Math.random() * hopDuration}s`;
-
-    critter.appendChild(face);
-    container.appendChild(critter);
-  }
-}
-
-function initCritterLanes() {
-  buildCritterLane(critterLane, 6);
 }
 
 let audioCtx = null;
@@ -856,7 +791,6 @@ populateLanguageSelect();
 languageSelect.value = state.lang;
 applyI18n();
 updateMuteBtn();
-initCritterLanes();
 setupGame();
 Platform.init().then(() => Platform.gameplayStart());
 </script>
